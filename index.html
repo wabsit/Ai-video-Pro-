@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>AI Video Pro</title>
+
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<header class="header">
+  <div class="logo">🎬 <span>AI Video Pro</span></div>
+  <button class="upgrade-btn">⭐ Upgrade</button>
+</header>
+
+<main class="container">
+
+  <section class="hero">
+    <h1>Create Long Videos with AI</h1>
+    <p>Turn your ideas into amazing 1–10 minute AI videos</p>
+  </section>
+
+  <section class="card">
+
+    <label for="prompt">✨ Describe your video</label>
+
+    <textarea
+      id="prompt"
+      placeholder="Example: Create a cinematic 5-minute story about a beautiful Indian village..."
+    ></textarea>
+
+    <label class="upload-box">
+      🖼️
+      <span>Upload Reference Image</span>
+      <input type="file" id="imageInput" accept="image/*">
+    </label>
+
+    <div class="row">
+
+      <div class="field">
+        <label for="model">🤖 AI Model</label>
+
+        <select id="model">
+          <option value="free">Free Video</option>
+          <option value="veo-fast">Google Veo Fast</option>
+          <option value="veo-lite">Google Veo Lite</option>
+          <option value="veo-pro">Google Veo Pro</option>
+          <option value="grok">xAI Grok</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="duration">⏱️ Video Duration</label>
+
+        <select id="duration">
+          <option value="1">1 Minute</option>
+          <option value="3">3 Minutes</option>
+          <option value="5" selected>5 Minutes</option>
+          <option value="10">10 Minutes</option>
+        </select>
+      </div>
+
+    </div>
+
+    <div class="field">
+      <label for="ratio">📐 Video Format</label>
+
+      <select id="ratio">
+        <option value="9:16">9:16 — Shorts / Reels</option>
+        <option value="16:9">16:9 — YouTube</option>
+        <option value="1:1">1:1 — Square</option>
+      </select>
+    </div>
+
+    <button id="generateBtn" class="generate-btn">
+      🚀 Generate Video
+    </button>
+
+  </section>
+
+  <section class="preview-card">
+
+    <h2>🎬 Video Preview</h2>
+
+    <div id="preview">
+
+      <div class="preview-message">
+        <div class="play-icon">▶</div>
+        <p>Your generated video will appear here</p>
+      </div>
+
+    </div>
+
+  </section>
+
+</main>
+
+<footer>
+  <p>© 2026 AI Video Pro • Powered by AI</p>
+</footer>
+
+<script src="script.js"></script>
+
+</body>
+  </html>
