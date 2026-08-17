@@ -7,21 +7,24 @@ document.addEventListener("DOMContentLoaded", () => {
   const generateBtn = document.getElementById("generateBtn");
   const preview = document.getElementById("preview");
 
-  if (!generateBtn) return;
+  if (!generateBtn || !preview) {
+    console.error("Required elements not found.");
+    return;
+  }
 
   generateBtn.addEventListener("click", generateVideo);
 
   async function generateVideo() {
-    const prompt = promptInput?.value.trim();
+    const prompt = promptInput.value.trim();
 
     if (!prompt) {
-      showMessage("⚠️ पहले Video Prompt लिखें।");
-      promptInput?.focus();
+      showMessage("⚠️ पहले अपना Video Prompt लिखें।");
+      promptInput.focus();
       return;
     }
 
     generateBtn.disabled = true;
-    generateBtn.innerHTML = "⏳ Generating...";
+    generateBtn.textContent = "⏳ Processing...";
 
     showLoading();
 
@@ -29,11 +32,20 @@ document.addEventListener("DOMContentLoaded", () => {
       const formData = new FormData();
 
       formData.append("prompt", prompt);
-      formData.append("model", modelInput?.value || "free");
-      formData.append("duration", durationInput?.value || "5");
-      formData.append("ratio", ratioInput?.value || "9:16");
+      formData.append(
+        "model",
+        modelInput?.value || "free"
+      );
+      formData.append(
+        "duration",
+        durationInput?.value || "5"
+      );
+      formData.append(
+        "ratio",
+        ratioInput?.value || "9:16"
+      );
 
-      if (imageInput?.files?.length) {
+      if (imageInput?.files?.length > 0) {
         formData.append("image", imageInput.files[0]);
       }
 
@@ -42,66 +54,72 @@ document.addEventListener("DOMContentLoaded", () => {
         body: formData
       });
 
-      const contentType = response.headers.get("content-type") || "";
+      const contentType =
+        response.headers.get("content-type") || "";
 
-      let data;
-
-      if (contentType.includes("application/json")) {
-        data = await response.json();
-      } else {
+      if (!contentType.includes("application/json")) {
         const text = await response.text();
+
         throw new Error(
-          "Server ने JSON के बजाय यह response दिया: " +
-          text.substring(0, 150)
+          "API ने JSON response नहीं दिया। Server/API check करें।"
         );
       }
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error(data.error || "Video generation failed");
+        throw new Error(
+          data.error || "Video generation failed."
+        );
       }
 
-      /*
-       * API इनमें से किसी नाम से video URL भेज सकती है:
-       * videoUrl / url / video_url
-       */
       const videoUrl =
         data.videoUrl ||
-        data.url ||
         data.video_url ||
+        data.url ||
         data.output?.videoUrl ||
+        data.output?.video_url ||
         data.output?.url;
 
       if (!videoUrl) {
-        throw new Error(
-          data.message ||
-          "API ने अभी MP4 video URL नहीं दिया।"
-        );
+        showPlanReady(data);
+        return;
       }
 
       showVideo(videoUrl);
 
     } catch (error) {
-      console.error("VIDEO ERROR:", error);
+      console.error("Video Error:", error);
 
       showError(
-        "❌ Video generation में समस्या आई।",
+        "❌ Video generation failed",
         error.message
       );
     } finally {
       generateBtn.disabled = false;
-      generateBtn.innerHTML = "🚀 Generate Video";
+      generateBtn.textContent = "🚀 Generate Video";
     }
   }
+
 
   function showLoading() {
     preview.innerHTML = `
       <div class="video-status">
-        <div class="loading-circle">⏳</div>
-        <h3>Video Generating...</h3>
-        <p>कृपया थोड़ा इंतजार करें।</p>
+        <div class="play-icon">⏳</div>
+
+        <h3>Creating Your Video...</h3>
+
+        <p>
+          AI आपका video तैयार कर रहा है।
+        </p>
+
+        <small>
+          Please wait...
+        </small>
       </div>
     `;
   }
+
 
   function showVideo(videoUrl) {
     preview.innerHTML = `
@@ -113,27 +131,30 @@ document.addEventListener("DOMContentLoaded", () => {
           playsinline
           preload="metadata"
         >
-          <source src="${escapeHtml(videoUrl)}" type="video/mp4">
+          <source
+            src="${escapeHTML(videoUrl)}"
+            type="video/mp4"
+          >
+
           आपका browser video playback support नहीं करता।
         </video>
 
         <div class="video-actions">
 
           <button
-            type="button"
             id="playVideoBtn"
             class="video-action-btn"
+            type="button"
           >
             ▶️ Play
           </button>
 
           <a
-            id="downloadVideoBtn"
             class="video-action-btn download-btn"
-            href="${escapeHtml(videoUrl)}"
-            download="ai-video.mp4"
+            href="${escapeHTML(videoUrl)}"
+            download="ai-video-pro.mp4"
             target="_blank"
-            rel="noopener"
+            rel="noopener noreferrer"
           >
             ⬇️ Download MP4
           </a>
@@ -143,17 +164,20 @@ document.addEventListener("DOMContentLoaded", () => {
       </div>
     `;
 
-    const video = document.getElementById("generatedVideo");
-    const playBtn = document.getElementById("playVideoBtn");
+    const video =
+      document.getElementById("generatedVideo");
 
-    playBtn.addEventListener("click", async () => {
+    const playButton =
+      document.getElementById("playVideoBtn");
+
+    if (!video || !playButton) return;
+
+    playButton.addEventListener("click", async () => {
       try {
         if (video.paused) {
           await video.play();
-          playBtn.innerHTML = "⏸️ Pause";
         } else {
           video.pause();
-          playBtn.innerHTML = "▶️ Play";
         }
       } catch (error) {
         console.error(error);
@@ -161,39 +185,71 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     video.addEventListener("play", () => {
-      playBtn.innerHTML = "⏸️ Pause";
+      playButton.textContent = "⏸️ Pause";
     });
 
     video.addEventListener("pause", () => {
-      playBtn.innerHTML = "▶️ Play";
+      playButton.textContent = "▶️ Play";
     });
   }
+
+
+  function showPlanReady(data) {
+    preview.innerHTML = `
+      <div class="video-status">
+
+        <div class="play-icon">✅</div>
+
+        <h3>Video Request Received</h3>
+
+        <p>
+          AI Video API ने आपकी request receive कर ली।
+        </p>
+
+        <small>
+          ${escapeHTML(
+            data.message ||
+            "Video URL अभी उपलब्ध नहीं है।"
+          )}
+        </small>
+
+      </div>
+    `;
+  }
+
 
   function showMessage(message) {
     preview.innerHTML = `
       <div class="video-status">
-        <div class="loading-circle">ℹ️</div>
-        <h3>${escapeHtml(message)}</h3>
+
+        <div class="play-icon">ℹ️</div>
+
+        <h3>${escapeHTML(message)}</h3>
+
       </div>
     `;
   }
+
 
   function showError(title, message) {
     preview.innerHTML = `
       <div class="video-status error-box">
-        <div class="loading-circle">❌</div>
-        <h3>${escapeHtml(title)}</h3>
-        <p>${escapeHtml(message)}</p>
+
+        <div class="play-icon">❌</div>
+
+        <h3>${escapeHTML(title)}</h3>
+
+        <p>${escapeHTML(message)}</p>
+
       </div>
     `;
   }
 
-  function escapeHtml(value) {
+
+  function escapeHTML(value) {
     return String(value)
       .replaceAll("&", "&amp;")
       .replaceAll("<", "&lt;")
       .replaceAll(">", "&gt;")
       .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
-  }
-});
+      .replaceAll("'", "
