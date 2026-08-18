@@ -6,9 +6,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { prompt, duration, ratio } = req.body || {};
+    const { prompt } = req.body || {};
 
-    if (!prompt || !prompt.trim()) {
+    if (!prompt) {
       return res.status(400).json({
         error: "Video prompt is required"
       });
@@ -18,84 +18,54 @@ export default async function handler(req, res) {
 
     if (!token) {
       return res.status(500).json({
-        error: "REPLICATE_API_TOKEN is not configured"
+        error: "REPLICATE_API_TOKEN is missing in Vercel"
       });
     }
 
-    // Veo 3 currently generates short clips.
-    // Long 5–10 minute videos will be built from multiple clips later.
-    const requestedMinutes = Number(duration || 5);
-
-    const videoDuration = 8;
-
-    const aspectRatio =
-      ratio === "9:16" ? "9:16" :
-      ratio === "1:1" ? "16:9" :
-      "16:9";
-
-    const response = await fetch(
+    const createResponse = await fetch(
       "https://api.replicate.com/v1/models/google/veo-3/predictions",
       {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json",
-          "Prefer": "wait"
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({
           input: {
             prompt: prompt.trim(),
-            duration: videoDuration,
+            duration: 8,
+            aspect_ratio: "16:9",
             resolution: "720p",
-            aspect_ratio: aspectRatio,
             generate_audio: true
           }
         })
       }
     );
 
-    const data = await response.json();
+    const prediction = await createResponse.json();
 
-    if (!response.ok) {
-      console.error("Replicate error:", data);
-
-      return res.status(response.status).json({
+    if (!createResponse.ok) {
+      return res.status(createResponse.status).json({
         error:
-          data.detail ||
-          data.error ||
-          "Replicate video generation failed"
-      });
-    }
-
-    const videoUrl =
-      typeof data.output === "string"
-        ? data.output
-        : Array.isArray(data.output)
-          ? data.output[0]
-          : null;
-
-    if (videoUrl) {
-      return res.status(200).json({
-        success: true,
-        status: "completed",
-        videoUrl,
-        requestedMinutes
+          prediction.detail ||
+          prediction.error ||
+          "Replicate request failed"
       });
     }
 
     return res.status(200).json({
       success: true,
-      status: data.status || "processing",
-      predictionId: data.id,
-      requestedMinutes,
-      message: "Video generation is still processing."
+      status: prediction.status,
+      predictionId: prediction.id,
+      videoUrl: prediction.output || null,
+      getUrl: prediction.urls?.get || null
     });
 
   } catch (error) {
-    console.error("Generate API error:", error);
+    console.error("Generate error:", error);
 
     return res.status(500).json({
-      error: error.message || "Internal server error"
+      error: error.message || "Server error"
     });
   }
-          }
+      }
