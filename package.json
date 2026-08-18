@@ -1,1 +1,8 @@
-
+{
+  "name": "ai-video-pro",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "replicate": "^1.0.0"
+  }
+}
