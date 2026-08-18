@@ -18,54 +18,45 @@ export default async function handler(req, res) {
 
     if (!token) {
       return res.status(500).json({
-        error: "REPLICATE_API_TOKEN is missing in Vercel"
+        error: "REPLICATE_API_TOKEN is missing"
       });
     }
 
-    const createResponse = await fetch(
-      "https://api.replicate.com/v1/models/google/veo-3/predictions",
+    const response = await fetch(
+      "https://api.replicate.com/v1/models/minimax/video-01/predictions",
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json"
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+          "Prefer": "wait"
         },
         body: JSON.stringify({
           input: {
-            prompt: prompt.trim(),
-            duration: 8,
-            aspect_ratio: "16:9",
-            resolution: "720p",
-            generate_audio: true
+            prompt: prompt
           }
         })
       }
     );
 
-    const prediction = await createResponse.json();
+    const data = await response.json();
 
-    if (!createResponse.ok) {
-      return res.status(createResponse.status).json({
-        error:
-          prediction.detail ||
-          prediction.error ||
-          "Replicate request failed"
+    if (!response.ok) {
+      return res.status(response.status).json({
+        error: data?.detail || "Replicate video generation failed"
       });
     }
 
     return res.status(200).json({
       success: true,
-      status: prediction.status,
-      predictionId: prediction.id,
-      videoUrl: prediction.output || null,
-      getUrl: prediction.urls?.get || null
+      predictionId: data.id,
+      status: data.status,
+      output: data.output || null
     });
 
   } catch (error) {
-    console.error("Generate error:", error);
-
     return res.status(500).json({
-      error: error.message || "Server error"
+      error: error.message
     });
   }
-      }
+        }    
