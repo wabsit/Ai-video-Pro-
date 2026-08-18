@@ -1,255 +1,164 @@
-document.addEventListener("DOMContentLoaded", () => {
-  const promptInput = document.getElementById("prompt");
-  const imageInput = document.getElementById("image");
-  const modelInput = document.getElementById("model");
-  const durationInput = document.getElementById("duration");
-  const ratioInput = document.getElementById("ratio");
-  const generateBtn = document.getElementById("generateBtn");
-  const preview = document.getElementById("preview");
+const promptInput = document.getElementById("prompt");
+const modelInput = document.getElementById("model");
+const durationInput = document.getElementById("duration");
+const ratioInput = document.getElementById("ratio");
 
-  if (!generateBtn || !preview) {
-    console.error("Required elements not found.");
+const generateButton =
+  document.getElementById("generateBtn") ||
+  document.querySelector("button");
+
+const previewBox =
+  document.getElementById("videoPreview") ||
+  document.querySelector("video");
+
+const previewSection = document.querySelector(".video-preview");
+
+async function generateVideo() {
+  const prompt = promptInput?.value.trim();
+
+  if (!prompt) {
+    alert("Please describe the video first.");
     return;
   }
 
-  generateBtn.addEventListener("click", generateVideo);
+  if (generateButton) {
+    generateButton.disabled = true;
+    generateButton.innerText = "⏳ Generating Video...";
+  }
 
-  async function generateVideo() {
-    const prompt = promptInput.value.trim();
+  try {
+    const response = await fetch("/api/generate", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        prompt: prompt,
+        model: modelInput?.value || "free",
+        duration: durationInput?.value || "5",
+        ratio: ratioInput?.value || "9:16"
+      })
+    });
 
-    if (!prompt) {
-      showMessage("⚠️ पहले अपना Video Prompt लिखें।");
-      promptInput.focus();
-      return;
+    const data = await response.json();
+
+    console.log("API Response:", data);
+
+    if (!response.ok) {
+      throw new Error(data.error || "Video generation failed");
     }
 
-    generateBtn.disabled = true;
-    generateBtn.textContent = "⏳ Processing...";
+    const videoUrl = getVideoUrl(data.output);
 
-    showLoading();
-
-    try {
-      const formData = new FormData();
-
-      formData.append("prompt", prompt);
-      formData.append(
-        "model",
-        modelInput?.value || "free"
+    if (!videoUrl) {
+      throw new Error(
+        "Video generation started, but MP4 URL was not returned."
       );
-      formData.append(
-        "duration",
-        durationInput?.value || "5"
-      );
-      formData.append(
-        "ratio",
-        ratioInput?.value || "9:16"
-      );
+    }
 
-      if (imageInput?.files?.length > 0) {
-        formData.append("image", imageInput.files[0]);
-      }
+    showVideo(videoUrl);
 
-      const response = await fetch("/api/generate", {
-        method: "POST",
-        body: formData
-      });
+  } catch (error) {
+    console.error(error);
 
-      const contentType =
-        response.headers.get("content-type") || "";
+    alert("❌ " + error.message);
+  } finally {
+    if (generateButton) {
+      generateButton.disabled = false;
+      generateButton.innerText = "🚀 Generate Video";
+    }
+  }
+}
 
-      if (!contentType.includes("application/json")) {
-        const text = await response.text();
 
-        throw new Error(
-          "API ने JSON response नहीं दिया। Server/API check करें।"
-        );
-      }
+function getVideoUrl(output) {
+  if (!output) return null;
 
-      const data = await response.json();
+  if (typeof output === "string") {
+    return output;
+  }
 
-      if (!response.ok) {
-        throw new Error(
-          data.error || "Video generation failed."
-        );
-      }
+  if (Array.isArray(output)) {
+    return output[0] || null;
+  }
 
-      const videoUrl =
-        data.videoUrl ||
-        data.video_url ||
-        data.url ||
-        data.output?.videoUrl ||
-        data.output?.video_url ||
-        data.output?.url;
+  if (typeof output === "object") {
+    return output.url || output.video || null;
+  }
 
-      if (!videoUrl) {
-        showPlanReady(data);
-        return;
-      }
+  return null;
+}
 
-      showVideo(videoUrl);
 
-    } catch (error) {
-      console.error("Video Error:", error);
+function showVideo(videoUrl) {
+  let video = document.getElementById("generatedVideo");
 
-      showError(
-        "❌ Video generation failed",
-        error.message
-      );
-    } finally {
-      generateBtn.disabled = false;
-      generateBtn.textContent = "🚀 Generate Video";
+  if (!video) {
+    video = document.createElement("video");
+
+    video.id = "generatedVideo";
+    video.controls = true;
+    video.playsInline = true;
+
+    video.style.width = "100%";
+    video.style.maxWidth = "700px";
+    video.style.borderRadius = "16px";
+    video.style.marginTop = "20px";
+
+    if (previewSection) {
+      previewSection.appendChild(video);
+    } else if (previewBox?.parentElement) {
+      previewBox.parentElement.appendChild(video);
+    } else {
+      document.body.appendChild(video);
     }
   }
 
+  video.src = videoUrl;
+  video.load();
 
-  function showLoading() {
-    preview.innerHTML = `
-      <div class="video-status">
-        <div class="play-icon">⏳</div>
+  showDownloadButton(videoUrl);
 
-        <h3>Creating Your Video...</h3>
+  video.scrollIntoView({
+    behavior: "smooth",
+    block: "center"
+  });
+}
 
-        <p>
-          AI आपका video तैयार कर रहा है।
-        </p>
 
-        <small>
-          Please wait...
-        </small>
-      </div>
-    `;
+function showDownloadButton(videoUrl) {
+  let downloadButton = document.getElementById("downloadVideo");
+
+  if (!downloadButton) {
+    downloadButton = document.createElement("a");
+
+    downloadButton.id = "downloadVideo";
+    downloadButton.innerText = "⬇️ Download MP4";
+
+    downloadButton.style.display = "inline-block";
+    downloadButton.style.marginTop = "15px";
+    downloadButton.style.padding = "12px 20px";
+    downloadButton.style.borderRadius = "10px";
+    downloadButton.style.background = "#e91e63";
+    downloadButton.style.color = "#fff";
+    downloadButton.style.textDecoration = "none";
+    downloadButton.style.fontWeight = "bold";
+
+    const video = document.getElementById("generatedVideo");
+
+    if (video?.parentElement) {
+      video.parentElement.appendChild(downloadButton);
+    } else {
+      document.body.appendChild(downloadButton);
+    }
   }
 
-
-  function showVideo(videoUrl) {
-    preview.innerHTML = `
-      <div class="generated-video">
-
-        <video
-          id="generatedVideo"
-          controls
-          playsinline
-          preload="metadata"
-        >
-          <source
-            src="${escapeHTML(videoUrl)}"
-            type="video/mp4"
-          >
-
-          आपका browser video playback support नहीं करता।
-        </video>
-
-        <div class="video-actions">
-
-          <button
-            id="playVideoBtn"
-            class="video-action-btn"
-            type="button"
-          >
-            ▶️ Play
-          </button>
-
-          <a
-            class="video-action-btn download-btn"
-            href="${escapeHTML(videoUrl)}"
-            download="ai-video-pro.mp4"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            ⬇️ Download MP4
-          </a>
-
-        </div>
-
-      </div>
-    `;
-
-    const video =
-      document.getElementById("generatedVideo");
-
-    const playButton =
-      document.getElementById("playVideoBtn");
-
-    if (!video || !playButton) return;
-
-    playButton.addEventListener("click", async () => {
-      try {
-        if (video.paused) {
-          await video.play();
-        } else {
-          video.pause();
-        }
-      } catch (error) {
-        console.error(error);
-      }
-    });
-
-    video.addEventListener("play", () => {
-      playButton.textContent = "⏸️ Pause";
-    });
-
-    video.addEventListener("pause", () => {
-      playButton.textContent = "▶️ Play";
-    });
-  }
+  downloadButton.href = videoUrl;
+  downloadButton.target = "_blank";
+  downloadButton.download = "ai-video.mp4";
+}
 
 
-  function showPlanReady(data) {
-    preview.innerHTML = `
-      <div class="video-status">
-
-        <div class="play-icon">✅</div>
-
-        <h3>Video Request Received</h3>
-
-        <p>
-          AI Video API ने आपकी request receive कर ली।
-        </p>
-
-        <small>
-          ${escapeHTML(
-            data.message ||
-            "Video URL अभी उपलब्ध नहीं है।"
-          )}
-        </small>
-
-      </div>
-    `;
-  }
-
-
-  function showMessage(message) {
-    preview.innerHTML = `
-      <div class="video-status">
-
-        <div class="play-icon">ℹ️</div>
-
-        <h3>${escapeHTML(message)}</h3>
-
-      </div>
-    `;
-  }
-
-
-  function showError(title, message) {
-    preview.innerHTML = `
-      <div class="video-status error-box">
-
-        <div class="play-icon">❌</div>
-
-        <h3>${escapeHTML(title)}</h3>
-
-        <p>${escapeHTML(message)}</p>
-
-      </div>
-    `;
-  }
-
-
-  function escapeHTML(value) {
-    return String(value)
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "
+if (generateButton) {
+  generateButton.addEventListener("click", generateVideo);
+}
